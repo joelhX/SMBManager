@@ -2,6 +2,7 @@ import sys
 import os
 import pexpect
 import subprocess
+import argparse
 
 SHARE_PATH="/mnt/d/Share/"
 def AddGroup(ProjectName):
@@ -12,16 +13,6 @@ def AddGroup(ProjectName):
     except:
         None
 
-def AddUser(user):
-    subprocess.call(["/usr/sbin/adduser","-M","-N",user])
-    subprocess.call(["/usr/sbin/usermod","-a", "-G",ProjectName,user])
- 
-    password=user
-    child = pexpect.spawn("/usr/bin/smbpasswd -a "+user)
-    child.expect("New SMB password:")
-    child.sendline (password)
-    child.expect ("Retype new SMB password:")
-    child.sendline (password)
 
 def AddSMBConfig(ProjectName):
     ConfigItem="""##############################################################
@@ -34,14 +25,11 @@ def AddSMBConfig(ProjectName):
     writable = yes
 
 """
-
     with open("/etc/samba/smb.conf","r") as f:
         buffer=f.read()
     
     with open("/etc/samba/smb.conf","w") as f:
         f.write(buffer+ConfigItem)
-
-
 
 def GetSMBConfigs(): 
     Conf=dict()
@@ -52,25 +40,31 @@ def GetSMBConfigs():
         PrjName=config.split("]")[0].split("[")[1]
         Conf[PrjName]=config
     return Conf
-    
-if __name__ == "__main__":
-    option=sys.argv[1]
-    ProjectName = sys.argv[2]
 
-    if(option=="-a"):
-        AddGroup(ProjectName)
-        AddSMBConfig(ProjectName)
-        with open(ProjectName+".users","r") as f:
-            for user in f.read().splitlines():
-                AddUser(user)
-    
-    elif(option=="-d"):
-        Confs=GetSMBConfigs()
-        try:
-            del Confs[ProjectName]
-            with open("/etc/samba/smb.conf","w") as f:
-                for k,v in Confs.items():
-                    f.write(v)
-        
-        except:
-            print("Can't find ProjectNsmr")
+def a(ProjectName):
+    AddGroup(ProjectName)
+    if(ProjectName in GetSMBConfigs().keys()):
+        return
+    AddSMBConfig(ProjectName)
+    with open(ProjectName+".users","r") as f:
+        for user in f.read().splitlines():
+            AddUser(ProjectName,user)
+
+def d(ProjectName):
+    Confs=GetSMBConfigs()
+    try:
+        del Confs[ProjectName]
+        with open("/etc/samba/smb.conf","w") as f:
+            for k,v in Confs.items():
+                f.write(v)
+    except:
+        print("Can't find ProjectNsmr")
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-a',  action='store', help="add Project")
+    parser.add_argument('-d',  action='store', help="delete Project")
+    args = parser.parse_args()
+    for k,v in vars(args).items():
+        if v!=None:
+            eval(k)(v)
